@@ -1,29 +1,28 @@
 agent {
     kubernetes {
-        defaultContainer 'kaniko'
+        defaultContainer 'jnlp-slave'
         yaml '''
+apiVersion: v1
 kind: Pod
+metadata:
+  name: jenkins-agent-pod
+  namespace: default
 spec:
   containers:
-  - name: kaniko
-    image: gcr.io/kaniko-project/executor:debug
-    imagePullPolicy: Always
-    command:
-    - sleep
-    args:
-    - 99d
-    volumeMounts:
-      - name: aws-secret
-        mountPath: /root/.aws/
-      - name: docker-registry-config
-        mountPath: /kaniko/.docker
-  volumes:
-    - name: aws-secret
-      secret:
-        secretName: aws-secret
-    - name: docker-registry-config
-      configMap:
-        name: docker-registry-config
+    - name: jenkins-agent
+      image: eclipse-temurin:21.0.4_7-jdk-jammy
+      command:
+        - sh
+      args:
+        - -c
+        - tail -f /dev/null
+      resources:
+        limits:
+          memory: 1Gi
+          cpu: 2
+        requests:
+          memory: 1Gi
+          cpu: 2
 '''
    }
 }
