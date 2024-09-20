@@ -1,6 +1,6 @@
 podTemplate(
   containers: [
-    containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent:latest-jdk11', args: '${computer.jnlpmac} ${computer.name}')
+    containerTemplate(name: 'jnlp', image: 'jenkins/inbound-agent:latest-jdk21', args: '${computer.jnlpmac} ${computer.name}')
   ]
 ) {
   node(POD_LABEL) {
