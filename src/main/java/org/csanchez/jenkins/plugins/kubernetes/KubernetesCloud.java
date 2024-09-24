@@ -117,6 +117,7 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
     private List<PodTemplate> templates = new ArrayList<>();
 
     private String serverUrl;
+    private String armadactlAbsPath;
     private boolean useJenkinsProxy;
 
     @CheckForNull
@@ -278,6 +279,15 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
     public void setServerUrl(@NonNull String serverUrl) {
         ensureKubernetesUrlInFipsMode(serverUrl);
         this.serverUrl = Util.fixEmpty(serverUrl);
+    }
+
+    public String getArmadactlAbsPath() {
+        return armadactlAbsPath;
+    }
+
+    @DataBoundSetter
+    public void setArmadactlAbsPath(@NonNull String armadactlAbsPath) {
+        this.armadactlAbsPath = armadactlAbsPath;
     }
 
     public String getServerCertificate() {
@@ -992,6 +1002,31 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
                 return FormValidation.error("Error testing connection %s: %s", serverUrl, e.getMessage());
             }
         }
+
+      @RequirePOST
+      @SuppressWarnings("unused") // used by jelly
+      public FormValidation doTestArmadactl(@QueryParameter String armadactlAbsPath) {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+
+        try {
+          ProcessBuilder processBuilder = new ProcessBuilder();
+          processBuilder.command("sh", "-c", armadactlAbsPath + " get scheduling-report");
+
+          Process process = processBuilder.start();
+
+          int exitCode = process.waitFor();
+          if (exitCode != 0) {
+            return FormValidation.error("armadactl failed with exit code: " + exitCode);
+          }
+
+          return FormValidation.ok("armadactl executed successfully");
+        } catch (Exception e) {
+          String message = String.format("Could not execute armadactl from abs path: %s",
+              armadactlAbsPath);
+          LOGGER.log(Level.SEVERE, message);
+          return FormValidation.error(message);
+        }
+      }
 
         @RequirePOST
         @SuppressWarnings({"unused", "lgtm[jenkins/csrf]"

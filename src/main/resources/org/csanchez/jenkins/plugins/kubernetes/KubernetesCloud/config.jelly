@@ -28,6 +28,12 @@ THE SOFTWARE.
       <f:textbox/>
     </f:entry>
 
+    <f:entry title="${%armadactl absolute path}" field="armadactlAbsPath">
+      <f:textbox/>
+    </f:entry>
+
+    <f:validateButton title="${%Test armadactl}" progress="${%Testing...}" method="testArmadactl" with="armadactlAbsPath" />
+
     <f:entry title="${%Use Jenkins Proxy}" field="useJenkinsProxy">
       <f:checkbox/>
     </f:entry>
