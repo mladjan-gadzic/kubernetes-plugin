@@ -6,7 +6,7 @@ podTemplate(
   node(POD_LABEL) {
     stage('example1') {
       container('jnlp') {
-        sh 'ls -la'
+        sh 'tail -f /dev/null'
       }
     }
   }
