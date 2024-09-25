@@ -33,7 +33,9 @@ import hudson.util.XStream2;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.VersionInfo;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.net.ConnectException;
 import java.net.MalformedURLException;
@@ -56,6 +58,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import javax.servlet.ServletException;
 import jenkins.authentication.tokens.api.AuthenticationTokens;
 import jenkins.bouncycastle.api.PEMEncodable;
@@ -1335,5 +1339,42 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
                 jenkins.clouds.add(cloud);
             }
         }
+    }
+
+    public String submitArmadaJob() throws IOException, InterruptedException {
+        ProcessBuilder processBuilder = new ProcessBuilder();
+        processBuilder.command("sh", "-c", armadactlAbsPath + " submit /Users/mladjangadzic/Documents/bakson/armada-operator/dev/quickstart/jenkins-agent.yaml");
+
+        Process process = processBuilder.start();
+
+        int exitCode = process.waitFor();
+        if (exitCode != 0) {
+            throw new RuntimeException("armadactl failed with exit code: " + exitCode);
+        }
+
+        // Use StringBuilder to aggregate the output
+        StringBuilder output = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append(System.lineSeparator()); // Append each line and newline
+            }
+        }
+
+        return extractJobId(output.toString());
+    }
+
+    public static String extractJobId(String output) {
+        // Regular expression to match any 26-character long alphanumeric string
+        String regex = "\\b[a-zA-Z0-9]{26}\\b"; // Use word boundaries to isolate the string
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(output);
+
+        if (matcher.find()) {
+            // Return the first match found
+            return matcher.group();
+        }
+
+        return null; // If no match is found
     }
 }

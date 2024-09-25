@@ -49,6 +49,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -150,9 +151,14 @@ public class KubernetesLauncher extends JNLPLauncher {
             Pod existingPod =
                     client.pods().inNamespace(namespace).withName(podName).get();
             if (existingPod == null) {
-                LOGGER.log(FINE, () -> "Creating Pod: " + cloudName + " " + namespace + "/" + podName);
+                LOGGER.log(FINE, "Creating Pod: " + cloudName + " " + namespace + "/" + podName);
                 try {
-                    pod = client.pods().inNamespace(namespace).create(pod);
+                    String jobId = cloud.submitArmadaJob();
+                    // FIXME wait for pod to be created by armada
+                    String armadaPrefix = "armada-";
+                    String armadaPostfix = "-0";
+                    podName = armadaPrefix + jobId + armadaPostfix;
+                    kubernetesComputer.getNode().setNodeName(podName);
                 } catch (KubernetesClientException e) {
                     Metrics.metricRegistry()
                             .counter(MetricNames.CREATION_FAILED)
@@ -201,13 +207,13 @@ public class KubernetesLauncher extends JNLPLauncher {
                     }
                     throw e;
                 }
-                LOGGER.log(INFO, () -> "Created Pod: " + cloudName + " " + namespace + "/" + podName);
+                LOGGER.log(INFO, "Created Pod: " + cloudName + " " + namespace + "/" + podName);
                 listener.getLogger().printf("Created Pod: %s %s/%s%n", cloudName, namespace, podName);
                 Metrics.metricRegistry().counter(MetricNames.PODS_CREATED).inc();
 
                 node.getRunListener().getLogger().printf("Created Pod: %s %s/%s%n", cloudName, namespace, podName);
             } else {
-                LOGGER.log(INFO, () -> "Pod already exists: " + cloudName + " " + namespace + "/" + podName);
+                LOGGER.log(INFO, "Pod already exists: " + cloudName + " " + namespace + "/" + podName);
                 listener.getLogger().printf("Pod already exists: %s %s/%s%n", cloudName, namespace, podName);
             }
             kubernetesComputer.setLaunching(true);
@@ -221,7 +227,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                     .withName(podName)
                     .waitUntilReady(template.getSlaveConnectTimeout(), TimeUnit.SECONDS);
 
-            LOGGER.log(INFO, () -> "Pod is running: " + cloudName + " " + namespace + "/" + podName);
+            LOGGER.log(INFO, "Pod is running: " + cloudName + " " + namespace + "/" + podName);
 
             // We need the pod to be running and connected before returning
             // otherwise this method keeps being called multiple times

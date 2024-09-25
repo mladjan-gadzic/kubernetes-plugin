@@ -74,14 +74,15 @@ public class PodTemplateStepExecution extends AbstractStepExecutionImpl {
 
         String label;
         String podTemplateLabel = step.getLabel();
-        if (podTemplateLabel == null) {
-            var sanitized = PodTemplateUtils.sanitizeLabel(run.getExternalizableId()) + "-"
-                    + RandomStringUtils.random(5, "bcdfghjklmnpqrstvwxz0123456789");
-            assert PodTemplateUtils.validateLabel(sanitized) : sanitized;
-            label = sanitized;
-        } else {
-            label = podTemplateLabel;
-        }
+//        if (podTemplateLabel == null) {
+//            var sanitized = PodTemplateUtils.sanitizeLabel(run.getExternalizableId()) + "-"
+//                    + RandomStringUtils.random(5, "bcdfghjklmnpqrstvwxz0123456789");
+//            assert PodTemplateUtils.validateLabel(sanitized) : sanitized;
+//            label = sanitized;
+//        } else {
+//            label = podTemplateLabel;
+//        }
+        label = "armada";
 
         // Let's generate a random name based on the user specified to make sure that we don't have
         // issues with concurrent builds, or messing with pre-existing configuration
