@@ -3,6 +3,7 @@ package org.csanchez.jenkins.plugins.kubernetes;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.commons.lang.StringUtils.isEmpty;
 
+import api.Health.HealthCheckResponse.ServingStatus;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
@@ -29,6 +30,7 @@ import hudson.util.FormApply;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import hudson.util.XStream2;
+import io.armadaproject.ArmadaClient;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.VersionInfo;
@@ -114,6 +116,10 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
 
     @NonNull
     private List<PodTemplate> templates = new ArrayList<>();
+
+    private String armadaUrl;
+    private String armadaPort;
+    private String armadaQueue;
 
     private String serverUrl;
     private boolean useJenkinsProxy;
@@ -988,6 +994,35 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
             } catch (Exception e) {
                 LOGGER.log(Level.FINE, String.format("Error testing connection %s", serverUrl), e);
                 return FormValidation.error("Error testing connection %s: %s", serverUrl, e.getMessage());
+            }
+        }
+
+        @RequirePOST
+        @SuppressWarnings("unused") // used by jelly
+        public FormValidation doTestArmadaConnection(@QueryParameter String armadaUrl,
+            @QueryParameter String armadaPort) {
+            Jenkins.get().checkPermission(Jenkins.MANAGE);
+
+            if (StringUtils.isBlank(armadaUrl)) {
+                return FormValidation.error("armadaUrl is required");
+            }
+            if (StringUtils.isBlank(armadaPort)) {
+                return FormValidation.error("armadaPort is required");
+            }
+
+            try {
+                ArmadaClient armadaClient =
+                    new ArmadaClient(armadaUrl, Integer.parseInt(armadaPort));
+                if (ServingStatus.SERVING == armadaClient.checkHealth()) {
+                    return FormValidation.ok("Connected to Armada");
+                }
+
+                return FormValidation.error("Connection to Armada failed %s:%s", armadaUrl,
+                    armadaPort);
+            } catch (Exception e) {
+                LOGGER.log(Level.FINE,
+                    String.format("Error testing Armada connection %s:%s", armadaUrl, armadaPort), e);
+                return FormValidation.error("Error testing Armada connection %s:%s", armadaUrl, armadaPort);
             }
         }
 

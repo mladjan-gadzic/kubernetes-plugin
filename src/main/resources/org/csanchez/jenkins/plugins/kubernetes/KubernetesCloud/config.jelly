@@ -24,6 +24,20 @@ THE SOFTWARE.
       <f:textbox default="kubernetes" clazz="required"/>
     </f:entry>
 
+    <f:entry title="${%Armada URL}" field="armadaUrl">
+      <f:textbox default="localhost" clazz="required"/>
+    </f:entry>
+
+    <f:entry title="${%Armada port}" field="armadaPort">
+      <f:textbox default="30002" clazz="required"/>
+    </f:entry>
+
+    <f:entry title="${%Armada queue}" field="armadaQueue">
+      <f:textbox default="example" clazz="required"/>
+    </f:entry>
+
+    <f:validateButton title="${%Test Armada Connection}" progress="${%Testing...}" method="testArmadaConnection" with="armadaUrl,armadaPort" />
+
     <f:entry title="${%Kubernetes URL}" field="serverUrl">
       <f:textbox/>
     </f:entry>

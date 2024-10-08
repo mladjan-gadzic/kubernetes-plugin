@@ -52,6 +52,7 @@
     <spotbugs.effort>Max</spotbugs.effort>
     <spotbugs.threshold>Low</spotbugs.threshold>
     <spotless.check.skip>false</spotless.check.skip>
+    <armada-grpc-java-client.version>0.0.1</armada-grpc-java-client.version>
   </properties>
 
   <dependencyManagement>
@@ -264,6 +265,11 @@
       <artifactId>JUnitParams</artifactId>
       <version>1.1.1</version>
       <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.armadaproject</groupId>
+      <artifactId>armada-grpc-java-client</artifactId>
+      <version>${armada-grpc-java-client.version}</version>
     </dependency>
   </dependencies>
 
