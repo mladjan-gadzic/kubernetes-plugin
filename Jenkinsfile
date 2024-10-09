@@ -15,7 +15,7 @@ pipeline {
     stage('example') {
       steps {
         container('jnlp') {
-          sh 'ls -la'
+          sh 'tail -f /dev/null'
         }
       }
     }
