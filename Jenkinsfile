@@ -7,7 +7,7 @@ pipeline {
         spec:
           containers:
           - name: jnlp
-            image: jenkins/inbound-agent:latest-jdk21
+            image: jenkins/inbound-agent:latest-jdk17
         '''
     }
   }
