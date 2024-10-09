@@ -6,27 +6,16 @@ pipeline {
         kind: Pod
         spec:
           containers:
-          - name: maven
-            image: maven:3.9.9-eclipse-temurin-17
-            command:
-            - cat
-            tty: true
-          - name: busybox
-            image: busybox
-            command:
-            - cat
-            tty: true
+          - name: jnlp
+            image: jenkins/inbound-agent:latest-jdk21
         '''
     }
   }
   stages {
-    stage('Run maven') {
+    stage('example') {
       steps {
-        container('maven') {
-          sh 'mvn -version'
-        }
-        container('busybox') {
-          sh '/bin/busybox'
+        container('jnlp') {
+          sh 'ls -la'
         }
       }
     }
