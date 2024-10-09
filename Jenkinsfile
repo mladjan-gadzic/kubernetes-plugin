@@ -1,57 +1,37 @@
-properties([
-    disableConcurrentBuilds(abortPrevious: true),
-    durabilityHint('PERFORMANCE_OPTIMIZED'),
-    buildDiscarder(logRotator(numToKeepStr: '5')),
-])
-
-def splits
-stage('Determine splits') {
-    node('maven-11') {
-        checkout scm
-        splits = splitTests parallelism: count(2), generateInclusions: true, estimateTestsFromFiles: true
+pipeline {
+  agent {
+    kubernetes {
+      yaml '''
+        apiVersion: v1
+        kind: Pod
+        metadata:
+          labels:
+            some-label: some-label-value
+        spec:
+          containers:
+          - name: maven
+            image: maven:3.9.9-eclipse-temurin-17
+            command:
+            - cat
+            tty: true
+          - name: busybox
+            image: busybox
+            command:
+            - cat
+            tty: true
+        '''
     }
-}
-stage('Tests') {
-    def branches = [:]
-    branches['failFast'] = true
-
-    for (int i = 0; i < splits.size(); i++) {
-        def num = i
-        def split = splits[num]
-        def index = num + 1
-        branches["kind-${index}"] = {
-            node('docker') {
-                timeout(90) {
-                    checkout scm
-                    try {
-                        writeFile file: (split.includes ? "$WORKSPACE_TMP/includes.txt" : "$WORKSPACE_TMP/excludes.txt"), text: split.list.join("\n")
-                        writeFile file: (split.includes ? "$WORKSPACE_TMP/excludes.txt" : "$WORKSPACE_TMP/includes.txt"), text: ''
-                        sh './kind.sh -Dsurefire.includesFile="$WORKSPACE_TMP/includes.txt" -Dsurefire.excludesFile="$WORKSPACE_TMP/excludes.txt"'
-                        junit 'target/surefire-reports/*.xml'
-                    } finally {
-                        dir(env.WORKSPACE_TMP) {
-                            if (fileExists('kindlogs/docker-info.txt')) {
-                                archiveArtifacts 'kindlogs/'
-                            }
-                        }
-                    }
-                }
-            }
+  }
+  stages {
+    stage('Run maven') {
+      steps {
+        container('maven') {
+          sh 'mvn -version'
         }
-    }
-    branches['jdk11'] = {
-        retry(count: 3, conditions: [kubernetesAgent(handleNonKubernetes: true), nonresumable()]) {
-            node('maven-11') {
-                timeout(60) {
-                    checkout scm
-                    sh 'mvn -B -ntp -Dset.changelist -Dmaven.test.failure.ignore clean install'
-                    infra.prepareToPublishIncrementals()
-                    junit 'target/surefire-reports/*.xml'
-                }
-            }
+        container('busybox') {
+          sh '/bin/busybox'
         }
+      }
     }
-    parallel branches
+  }
 }
-// Stage part of the library
-infra.maybePublishIncrementals()
