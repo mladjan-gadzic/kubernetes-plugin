@@ -270,6 +270,13 @@
       <groupId>io.armadaproject</groupId>
       <artifactId>armada-grpc-java-client</artifactId>
       <version>${armada-grpc-java-client.version}</version>
+      <!-- necessary because of enforcer plugin -->
+      <exclusions>
+        <exclusion>
+          <groupId>com.google.errorprone</groupId>
+          <artifactId>error_prone_annotations</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
   </dependencies>
 
