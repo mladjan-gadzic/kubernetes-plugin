@@ -1,6 +1,7 @@
 package org.csanchez.jenkins.plugins.kubernetes;
 
 import static org.csanchez.jenkins.plugins.kubernetes.KubernetesCloud.JNLP_NAME;
+import static org.csanchez.jenkins.plugins.kubernetes.PodTemplateBuilder.JENKINS_LABEL;
 
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -379,8 +380,8 @@ public class KubernetesSlave extends AbstractCloudSlave {
         // Healthy slave pods should still have a JNLP agent running at this point.
         boolean deletePod = getPodRetention(cloud).shouldDeletePod(cloud, () -> client.pods()
                 .inNamespace(getNamespace())
-                .withName(name)
-                .get());
+                .withLabel(JENKINS_LABEL, name)
+                .list().getItems().get(0));
 
         Computer computer = toComputer();
         if (computer == null) {

@@ -27,7 +27,10 @@ package org.csanchez.jenkins.plugins.kubernetes;
 import static java.util.logging.Level.FINE;
 import static java.util.logging.Level.INFO;
 import static java.util.logging.Level.WARNING;
+import static org.csanchez.jenkins.plugins.kubernetes.PodTemplateBuilder.JENKINS_LABEL;
 
+import api.SubmitOuterClass.JobSubmitRequest;
+import api.SubmitOuterClass.JobSubmitRequestItem;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.Functions;
@@ -37,6 +40,7 @@ import hudson.model.TaskListener;
 import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
+import io.armadaproject.ArmadaClient;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -54,6 +58,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import jenkins.metrics.api.Metrics;
+import k8s.io.api.core.v1.Generated.Container;
+import k8s.io.api.core.v1.Generated.EnvVar;
+import k8s.io.api.core.v1.Generated.PodSpec;
+import k8s.io.api.core.v1.Generated.ResourceRequirements;
+import k8s.io.apimachinery.pkg.api.resource.Generated.Quantity;
 import org.apache.commons.lang.StringUtils;
 import org.csanchez.jenkins.plugins.kubernetes.pod.decorator.PodDecoratorException;
 import org.csanchez.jenkins.plugins.kubernetes.pod.retention.Reaper;
@@ -119,6 +128,7 @@ public class KubernetesLauncher extends JNLPLauncher {
             PodTemplate template = node.getTemplate();
             KubernetesCloud cloud = node.getKubernetesCloud();
             KubernetesClient client = cloud.connect();
+            ArmadaClient armadaClient = cloud.connectToArmada();
             Pod pod;
             try {
                 pod = template.build(node);
@@ -147,12 +157,73 @@ public class KubernetesLauncher extends JNLPLauncher {
 
             // if the controller was interrupted after creating the pod but before it connected back, then
             // the pod might already exist and the creating logic must be skipped.
-            Pod existingPod =
-                    client.pods().inNamespace(namespace).withName(podName).get();
+            Pod existingPod = null;
+            try {
+                // getFirst() throws compilation error that it does not exist
+                // because of that get(0) is used
+                existingPod = client.pods().inNamespace(namespace).withLabel(JENKINS_LABEL, podName)
+                    .list().getItems().get(0);
+                LOGGER.info("Pod with label 'jenkins' found");
+            } catch (Exception e) {
+                LOGGER.warning("Pod with label 'jenkins' not found");
+            }
             if (existingPod == null) {
                 LOGGER.log(FINE, () -> "Creating Pod: " + cloudName + " " + namespace + "/" + podName);
                 try {
-                    pod = client.pods().inNamespace(namespace).create(pod);
+                    // TODO replace with armada
+//                    pod = client.pods().inNamespace(namespace).create(pod);
+                    JobSubmitRequest jobSubmitRequest = JobSubmitRequest.newBuilder()
+                        .setQueue("example")
+                        .setJobSetId("example")
+                        .addJobRequestItems(JobSubmitRequestItem.newBuilder()
+                            .setNamespace("default")
+                            .setPriority(0.00d)
+                            .putLabels(JENKINS_LABEL, podName)
+                            .addPodSpecs(PodSpec.newBuilder()
+                                .setPriorityClassName("armada-default")
+                                .setTerminationGracePeriodSeconds(0L)
+                                .setRestartPolicy("Never")
+                                .addContainers(Container.newBuilder()
+                                    .setName("jnlp")
+                                    .setImage("jenkins/inbound-agent:latest-jdk21")
+//                                    .addCommand("sh")
+//                                    .addAllArgs(List.of("-c", "tail -f /dev/null"))
+                                    .setResources(ResourceRequirements.newBuilder()
+                                        .putLimits("memory", Quantity.newBuilder().setString("512Mi").build())
+                                        .putLimits("cpu", Quantity.newBuilder().setString("2").build())
+                                        .putRequests("memory", Quantity.newBuilder().setString("512Mi").build())
+                                        .putRequests("cpu", Quantity.newBuilder().setString("2").build())
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("JENKINS_SECRET")
+                                        .setValue(computer.getJnlpMac())
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("REMOTING_OPTS")
+                                        .setValue("-noReconnectAfter 1d")
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("JENKINS_AGENT_NAME")
+                                        .setValue(podName)
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("JENKINS_NAME")
+                                        .setValue(podName)
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("JENKINS_AGENT_WORKDIR")
+                                        .setValue("/home/jenkins/agent")
+                                        .build())
+                                    .addEnv(EnvVar.newBuilder()
+                                        .setName("JENKINS_URL")
+                                        .setValue(cloud.getJenkinsUrl())
+                                        .build())
+                                    .build())
+                                .build())
+                            .build())
+                        .build();
+
+                    armadaClient.submitJob(jobSubmitRequest);
                 } catch (KubernetesClientException e) {
                     Metrics.metricRegistry()
                             .counter(MetricNames.CREATION_FAILED)
@@ -218,7 +289,7 @@ public class KubernetesLauncher extends JNLPLauncher {
 
             client.pods()
                     .inNamespace(namespace)
-                    .withName(podName)
+                    .withLabel(JENKINS_LABEL, podName)
                     .waitUntilReady(template.getSlaveConnectTimeout(), TimeUnit.SECONDS);
 
             LOGGER.log(INFO, () -> "Pod is running: " + cloudName + " " + namespace + "/" + podName);
@@ -244,7 +315,8 @@ public class KubernetesLauncher extends JNLPLauncher {
                 }
 
                 // Check that the pod hasn't failed already
-                pod = client.pods().inNamespace(namespace).withName(podName).get();
+                pod = client.pods().inNamespace(namespace).withLabel(JENKINS_LABEL, podName).list()
+                    .getItems().get(0);
                 if (pod == null) {
                     Metrics.metricRegistry().counter(MetricNames.LAUNCH_FAILED).inc();
                     throw new IllegalStateException("Pod no longer exists: " + podName);
@@ -255,7 +327,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                     Metrics.metricRegistry()
                             .counter(MetricNames.metricNameForPodStatus(status))
                             .inc();
-                    logLastLines(containerStatuses, podName, namespace, node, null, client);
+                    logLastLines(containerStatuses, pod, node, null, client);
                     throw new IllegalStateException("Pod '" + podName + "' is terminated. Status: " + status);
                 }
 
@@ -280,7 +352,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                     }
                 }
 
-                checkTerminatedContainers(terminatedContainers, podName, namespace, node, client);
+                checkTerminatedContainers(terminatedContainers, pod, node, client);
 
                 if (lastReportTimestamp + REPORT_INTERVAL < System.currentTimeMillis()) {
                     LOGGER.log(INFO, "Waiting for agent to connect ({1}/{2}): {0}", new Object[] {
@@ -298,7 +370,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                 Metrics.metricRegistry().counter(MetricNames.LAUNCH_FAILED).inc();
                 Metrics.metricRegistry().counter(MetricNames.FAILED_TIMEOUT).inc();
 
-                logLastLines(containerStatuses, podName, namespace, node, null, client);
+                logLastLines(containerStatuses, pod, node, null, client);
                 throw new IllegalStateException(
                         "Agent is not connected after " + waitedForSlave + " seconds, status: " + status);
             }
@@ -335,8 +407,7 @@ public class KubernetesLauncher extends JNLPLauncher {
 
     private void checkTerminatedContainers(
             List<ContainerStatus> terminatedContainers,
-            String podId,
-            String namespace,
+            Pod pod,
             KubernetesSlave slave,
             KubernetesClient client) {
         if (!terminatedContainers.isEmpty()) {
@@ -346,7 +417,7 @@ public class KubernetesLauncher extends JNLPLauncher {
                             (info) -> info.getState().getTerminated().getExitCode()));
 
             // Print the last lines of failed containers
-            logLastLines(terminatedContainers, podId, namespace, slave, errors, client);
+            logLastLines(terminatedContainers, pod, slave, errors, client);
             throw new IllegalStateException("Containers are terminated with exit codes: " + errors);
         }
     }
@@ -356,8 +427,7 @@ public class KubernetesLauncher extends JNLPLauncher {
      */
     private void logLastLines(
             @CheckForNull List<ContainerStatus> containers,
-            String podId,
-            String namespace,
+            Pod pod,
             KubernetesSlave slave,
             Map<String, Integer> errors,
             KubernetesClient client) {
@@ -365,8 +435,7 @@ public class KubernetesLauncher extends JNLPLauncher {
             for (ContainerStatus containerStatus : containers) {
                 String containerName = containerStatus.getName();
                 String log = client.pods()
-                        .inNamespace(namespace)
-                        .withName(podId)
+                        .resource(pod)
                         .inContainer(containerStatus.getName())
                         .tailingLines(30)
                         .getLog();

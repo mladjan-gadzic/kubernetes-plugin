@@ -908,6 +908,25 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
         this.waitForPodSec = waitForPodSec;
     }
 
+    @DataBoundSetter
+    public void setArmadaUrl(String armadaUrl) {
+        this.armadaUrl = armadaUrl;
+    }
+
+    @DataBoundSetter
+    public void setArmadaPort(String armadaPort) {
+        this.armadaPort = armadaPort;
+    }
+
+    @DataBoundSetter
+    public void setArmadaQueue(String armadaQueue) {
+        this.armadaQueue = armadaQueue;
+    }
+
+    public ArmadaClient connectToArmada() {
+        return new ArmadaClient(armadaUrl, Integer.parseInt(armadaPort));
+    }
+
     @Restricted(NoExternalUse.class) // jelly
     public PodTemplate.DescriptorImpl getTemplateDescriptor() {
         return (PodTemplate.DescriptorImpl) Jenkins.get().getDescriptorOrDie(PodTemplate.class);

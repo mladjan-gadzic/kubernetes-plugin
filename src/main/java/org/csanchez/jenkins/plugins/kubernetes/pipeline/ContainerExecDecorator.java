@@ -16,6 +16,7 @@
 
 package org.csanchez.jenkins.plugins.kubernetes.pipeline;
 
+import static org.csanchez.jenkins.plugins.kubernetes.PodTemplateBuilder.JENKINS_LABEL;
 import static org.csanchez.jenkins.plugins.kubernetes.pipeline.Constants.EXIT;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -28,6 +29,7 @@ import hudson.Proc;
 import hudson.model.Computer;
 import hudson.model.Node;
 import io.fabric8.kubernetes.api.model.Container;
+import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.client.KubernetesClient;
 import io.fabric8.kubernetes.client.KubernetesClientException;
 import io.fabric8.kubernetes.client.dsl.ExecListener;
@@ -467,10 +469,15 @@ public class ContainerExecDecorator extends LauncherDecorator implements Seriali
                         final CountDownLatch finished = new CountDownLatch(1);
                         final AtomicLong startAlive = new AtomicLong();
 
+                        Pod pod = getClient()
+                            .pods()
+                            .inNamespace(getNamespace())
+                            .withLabel(JENKINS_LABEL, getPodName()).list().getItems().get(0);
+
                         ExecWatch watch = getClient()
                                 .pods()
                                 .inNamespace(getNamespace())
-                                .withName(getPodName())
+                                .resource(pod)
                                 .inContainer(containerName)
                                 .redirectingInput(STDIN_BUFFER_SIZE) // JENKINS-50429
                                 .writingOutput(stream)
