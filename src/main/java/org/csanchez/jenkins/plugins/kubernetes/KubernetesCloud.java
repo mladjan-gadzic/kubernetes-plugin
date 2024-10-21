@@ -275,6 +275,33 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
         this.templates = new ArrayList<>(templates);
     }
 
+    public String getArmadaUrl() {
+        return armadaUrl;
+    }
+
+    @DataBoundSetter
+    public void setArmadaUrl(String armadaUrl) {
+        this.armadaUrl = armadaUrl;
+    }
+
+    public String getArmadaPort() {
+        return armadaPort;
+    }
+
+    @DataBoundSetter
+    public void setArmadaPort(String armadaPort) {
+        this.armadaPort = armadaPort;
+    }
+
+    public String getArmadaQueue() {
+        return armadaQueue;
+    }
+
+    @DataBoundSetter
+    public void setArmadaQueue(String armadaQueue) {
+        this.armadaQueue = armadaQueue;
+    }
+
     public String getServerUrl() {
         return serverUrl;
     }
@@ -906,21 +933,6 @@ public class KubernetesCloud extends Cloud implements PodTemplateGroup {
     @DataBoundSetter
     public void setWaitForPodSec(Integer waitForPodSec) {
         this.waitForPodSec = waitForPodSec;
-    }
-
-    @DataBoundSetter
-    public void setArmadaUrl(String armadaUrl) {
-        this.armadaUrl = armadaUrl;
-    }
-
-    @DataBoundSetter
-    public void setArmadaPort(String armadaPort) {
-        this.armadaPort = armadaPort;
-    }
-
-    @DataBoundSetter
-    public void setArmadaQueue(String armadaQueue) {
-        this.armadaQueue = armadaQueue;
     }
 
     public ArmadaClient connectToArmada() {

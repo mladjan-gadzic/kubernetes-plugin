@@ -41,6 +41,7 @@ import hudson.slaves.ComputerLauncher;
 import hudson.slaves.JNLPLauncher;
 import hudson.slaves.SlaveComputer;
 import io.armadaproject.ArmadaClient;
+import io.armadaproject.ArmadaMapper;
 import io.fabric8.kubernetes.api.model.ContainerStatus;
 import io.fabric8.kubernetes.api.model.ObjectMeta;
 import io.fabric8.kubernetes.api.model.Pod;
@@ -170,60 +171,10 @@ public class KubernetesLauncher extends JNLPLauncher {
             if (existingPod == null) {
                 LOGGER.log(FINE, () -> "Creating Pod: " + cloudName + " " + namespace + "/" + podName);
                 try {
-                    // TODO replace with armada
-//                    pod = client.pods().inNamespace(namespace).create(pod);
-                    JobSubmitRequest jobSubmitRequest = JobSubmitRequest.newBuilder()
-                        .setQueue("example")
-                        .setJobSetId("example")
-                        .addJobRequestItems(JobSubmitRequestItem.newBuilder()
-                            .setNamespace("default")
-                            .setPriority(0.00d)
-                            .putLabels(JENKINS_LABEL, podName)
-                            .addPodSpecs(PodSpec.newBuilder()
-                                .setPriorityClassName("armada-default")
-                                .setTerminationGracePeriodSeconds(0L)
-                                .setRestartPolicy("Never")
-                                .addContainers(Container.newBuilder()
-                                    .setName("jnlp")
-                                    .setImage("jenkins/inbound-agent:latest-jdk21")
-//                                    .addCommand("sh")
-//                                    .addAllArgs(List.of("-c", "tail -f /dev/null"))
-                                    .setResources(ResourceRequirements.newBuilder()
-                                        .putLimits("memory", Quantity.newBuilder().setString("512Mi").build())
-                                        .putLimits("cpu", Quantity.newBuilder().setString("2").build())
-                                        .putRequests("memory", Quantity.newBuilder().setString("512Mi").build())
-                                        .putRequests("cpu", Quantity.newBuilder().setString("2").build())
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("JENKINS_SECRET")
-                                        .setValue(computer.getJnlpMac())
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("REMOTING_OPTS")
-                                        .setValue("-noReconnectAfter 1d")
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("JENKINS_AGENT_NAME")
-                                        .setValue(podName)
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("JENKINS_NAME")
-                                        .setValue(podName)
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("JENKINS_AGENT_WORKDIR")
-                                        .setValue("/home/jenkins/agent")
-                                        .build())
-                                    .addEnv(EnvVar.newBuilder()
-                                        .setName("JENKINS_URL")
-                                        .setValue(cloud.getJenkinsUrl())
-                                        .build())
-                                    .build())
-                                .build())
-                            .build())
-                        .build();
+                    ArmadaMapper armadaMapper =
+                        new ArmadaMapper(cloud.getArmadaQueue(), cloud.getArmadaQueue(), pod);
 
-                    armadaClient.submitJob(jobSubmitRequest);
+                    armadaClient.submitJob(armadaMapper.createJobSubmitRequest());
                 } catch (KubernetesClientException e) {
                     Metrics.metricRegistry()
                             .counter(MetricNames.CREATION_FAILED)
