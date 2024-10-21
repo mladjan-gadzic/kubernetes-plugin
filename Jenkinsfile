@@ -11,7 +11,7 @@ pipeline {
             resources:
               limits:
                 cpu: 500m
-                memory: 512Mi
+                memory: 256Mi
               requests:
                 cpu: 200m
                 memory: 256Mi
