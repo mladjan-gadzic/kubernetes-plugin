@@ -8,6 +8,13 @@ pipeline {
           containers:
           - name: jnlp
             image: jenkins/inbound-agent:latest-jdk21
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 200m
+                memory: 256Mi
         '''
     }
   }
