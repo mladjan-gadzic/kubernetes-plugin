@@ -11,11 +11,25 @@ pipeline {
           containers:
           - name: maven
             image: maven:3.9.9-eclipse-temurin-17
+            resources:
+                  limits:
+                    memory: "512Mi"
+                    cpu: "200m"
+                  requests:
+                    memory: "512Mi"
+                    cpu: "200m"
             command:
             - cat
             tty: true
           - name: busybox
             image: busybox
+            resources:
+                  limits:
+                    memory: "512Mi"
+                    cpu: "200m"
+                  requests:
+                    memory: "512Mi"
+                    cpu: "200m"
             command:
             - cat
             tty: true
