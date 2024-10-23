@@ -140,9 +140,9 @@ public class PodTemplateBuilder {
             PodTemplateStepExecution.class.getName() + ".defaultContainer.defaultCpuRequest", "100m");
 
     static final String DEFAULT_JNLP_CONTAINER_MEMORY_LIMIT =
-            System.getProperty(PodTemplateStepExecution.class.getName() + ".defaultContainer.defaultMemoryLimit");
+            System.getProperty(PodTemplateStepExecution.class.getName() + ".defaultContainer.defaultMemoryLimit", "256Mi");
     static final String DEFAULT_JNLP_CONTAINER_CPU_LIMIT =
-            System.getProperty(PodTemplateStepExecution.class.getName() + ".defaultContainer.defaultCpuLimit");
+            System.getProperty(PodTemplateStepExecution.class.getName() + ".defaultContainer.defaultCpuLimit", "100m");
 
     private static final String JNLPMAC_REF = "\\$\\{computer.jnlpmac\\}";
     private static final String NAME_REF = "\\$\\{computer.name\\}";
