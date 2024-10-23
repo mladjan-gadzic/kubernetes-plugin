@@ -432,7 +432,7 @@ public class KubernetesSlave extends AbstractCloudSlave {
         try {
             boolean deleted = client.pods()
                             .inNamespace(getNamespace())
-                            .withName(name)
+                            .withLabel(JENKINS_LABEL, name)
                             .delete()
                             .size()
                     == 1;
